@@ -1,3 +1,6 @@
+[![Go Reference](https://pkg.go.dev/badge/github.com/Nikkolix/ijson.svg)](https://pkg.go.dev/github.com/Nikkolix/ijson)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Nikkolix/ijson)](https://goreportcard.com/report/github.com/Nikkolix/ijson)
+[![Build](https://github.com/Nikkolix/ijson/actions/workflows/go.yml/badge.svg)](https://github.com/Nikkolix/ijson/actions)
 # ijson
 
 A tiny generic helper to (un)marshal JSON and MessagePack into interface-backed values by deciding the concrete type at runtime.
@@ -141,7 +144,7 @@ Key pieces you will typically touch:
 
 These make it clear whether the issue is the registry wiring, the factory types, or the discriminator value in the payload.
 
-## Tips & gotchas
+## Tips and gotchas
 
 - Registration requires the factory to return a pointer to the concrete type. `RegisterT` enforces that by checking the dynamic type.
 - For registry-based decoding, your discriminator type `X` must be comparable and reflect the incoming payload fields so it can be unmarshalled first.
