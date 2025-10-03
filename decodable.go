@@ -107,23 +107,12 @@ type XDecodable[I any, X XDecider[I, X]] = Decodable[I, X, xAdapter[I, X]]
 // RDecodable is a type alias for Decodable using RegistryDecider.
 type RDecodable[I any, X comparable] = Decodable[I, X, RegistryDecider[I, X]]
 
-// registry is a map from discriminator value to factory function.
-type registry[I any, X comparable] = map[X]func() I
-
-type typeKey struct {
-	I reflect.Type
-	X reflect.Type
+// typeKey is a unique key to get the registry for types I and X with a value of X
+type typeKey[I any, X comparable] struct {
+	x X
 }
 
-// typeKeyFor returns a unique key for registry lookup based on types.
-func typeKeyFor[I any, X any]() typeKey {
-	return typeKey{
-		I: reflect.TypeFor[I](),
-		X: reflect.TypeFor[X](),
-	}
-}
-
-var registries = map[typeKey]any{}
+var registries = map[any]any{} // map[typeKey[I, X]]func() I
 var mutex = sync.RWMutex{}
 
 // ResetRegistries clears all registered types. Useful for tests.
@@ -141,7 +130,7 @@ func RegisterT[T any, I any, X comparable](x X) error {
 	}
 
 	if _, ok := any(new(T)).(I); !ok {
-		return fmt.Errorf("factory type %T does not implement I type %T", *new(T), *new(I))
+		return fmt.Errorf("factory type %T does not implement I type %s", *new(T), reflect.TypeFor[I]())
 	}
 	return Register[I, X](x, func() I {
 		return any(new(T)).(I)
@@ -159,24 +148,13 @@ func Register[I any, X comparable](x X, factory func() I) error {
 		return fmt.Errorf("factory must return a pointer type, got %T", t)
 	}
 
-	key := typeKeyFor[I, X]()
-	genericReg, ok := registries[key]
-	if !ok {
-		genericReg = registry[I, X]{}
-		registries[key] = genericReg
-	}
-
-	reg, ok := genericReg.(registry[I, X])
-	if !ok {
-		return fmt.Errorf("registry for type %v has wrong type", x)
-	}
-
-	_, ok = reg[x]
+	key := typeKey[I, X]{x: x}
+	_, ok := registries[key]
 	if ok {
-		return fmt.Errorf("type %v already registered", x)
+		return fmt.Errorf("value %v already registered for registry[I: %s, X: %T]", x, reflect.TypeFor[I](), x)
 	}
 
-	reg[x] = factory
+	registries[key] = factory
 	return nil
 }
 
@@ -189,19 +167,76 @@ func (RegistryDecider[I, X]) Decide(x X) (I, error) {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	var i I
-	genericReg, ok := registries[typeKeyFor[I, X]()]
+	anyFactory, ok := registries[typeKey[I, X]{x: x}]
 	if !ok {
-		return i, fmt.Errorf("no registry for I type %T and X type %T", i, x)
+		return i, fmt.Errorf("no factory found in registry[I: %s, X: %T] and X value %v", reflect.TypeFor[I](), x, x)
 	}
 
-	reg, ok := genericReg.(registry[I, X])
+	factory, ok := anyFactory.(func() I)
 	if !ok {
-		return i, fmt.Errorf("registry for type %v has wrong X type", x)
+		return i, fmt.Errorf("registry[I: %s, X: %T] entry should be func() I but is: %T for X value %v", reflect.TypeFor[I](), x, anyFactory, x)
 	}
 
-	factory, ok := reg[x]
+	return factory(), nil
+}
+
+// FSelector is an interface for types that can provide a field name for discriminator lookup.
+type FSelector interface {
+	FieldName() string
+	~struct{}
+}
+
+// RegisterF registers a factory function for interface I, discriminator X and field selector F.
+func RegisterF[I any, F FSelector, X comparable](x X, factory func() I) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	t := factory()
+	if reflect.TypeOf(t).Kind() != reflect.Pointer {
+		return fmt.Errorf("factory must return a pointer type, got %T", t)
+	}
+
+	key := typeKeyF[I, F, X]{x: x}
+	_, ok := registries[key]
+	if ok {
+		return fmt.Errorf("value %v already registered for registry[I: %s, F: %T, X: %T]", x, reflect.TypeFor[I](), *new(F), x)
+	}
+
+	registries[key] = factory
+	return nil
+}
+
+// typeKeyF is a unique key to get the registry for types I, X and F with a value of X
+type typeKeyF[I any, F FSelector, X comparable] struct {
+	x X
+}
+
+// DecodableF is a type alias for Decodable using FDecider.
+type DecodableF[I any, F FSelector, X comparable] = Decodable[I, map[string]X, FDecider[I, F, X]]
+
+// FDecider resolves a concrete type from a registry based on a discriminator field in a map.
+type FDecider[I any, F FSelector, X comparable] struct{}
+
+// Decide returns a new instance of I from the registry for the discriminator field in the map.
+func (FDecider[I, F, X]) Decide(mx map[string]X) (I, error) {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	var i I
+
+	fieldName := (*new(F)).FieldName()
+	x, ok := mx[fieldName]
 	if !ok {
-		return i, fmt.Errorf("no factory for X type %v", x)
+		return i, fmt.Errorf("discriminator field %s not found in map %v", fieldName, mx)
+	}
+
+	anyFactory, ok := registries[typeKeyF[I, F, X]{x: x}]
+	if !ok {
+		return i, fmt.Errorf("no factory found in registry[I: %s, F: %T, X: %T] and X value %v", reflect.TypeFor[I](), *new(F), x, x)
+	}
+
+	factory, ok := anyFactory.(func() I)
+	if !ok {
+		return i, fmt.Errorf("registry[I: %s, F: %T, X: %T] entry should be func() I but is: %T for X value %v", reflect.TypeFor[I](), *new(F), x, anyFactory, x)
 	}
 
 	return factory(), nil

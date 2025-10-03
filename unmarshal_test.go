@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/Nikkolix/ijson"
@@ -322,8 +323,8 @@ func TestDecodable_UnmarshalJSON_InvalidJSON(t *testing.T) {
 	invalidJSON := `{"name": "John", "age": invalid}`
 
 	err := decodable.UnmarshalJSON([]byte(invalidJSON))
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid character")
+	require.Error(t, err)
+	assert.Equal(t, "invalid character 'i' looking for beginning of value", err.Error())
 }
 
 func TestDecodable_UnmarshalJSON_NoRegisteredType(t *testing.T) {
@@ -333,8 +334,8 @@ func TestDecodable_UnmarshalJSON_NoRegisteredType(t *testing.T) {
 	jsonData := `{"type": "unknown"}`
 
 	err := decodable.UnmarshalJSON([]byte(jsonData))
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no registry for I type")
+	require.Error(t, err)
+	assert.Equal(t, "no factory found in registry[I: ijson_test.UnmarshalTestInterface, X: ijson_test.UnmarshalDiscriminator] and X value {unknown}", err.Error())
 }
 
 func TestDecodable_UnmarshalJSON_NoRegistry(t *testing.T) {
@@ -351,8 +352,8 @@ func TestDecodable_UnmarshalJSON_NoRegistry(t *testing.T) {
 	jsonData := `{"type": "test"}`
 
 	err := decodable.UnmarshalJSON([]byte(jsonData))
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no registry for I type")
+	require.Error(t, err)
+	assert.Equal(t, "no factory found in registry[I: ijson_test.UnknownInterface, X: ijson_test.UnknownDiscriminator] and X value {test}", err.Error())
 }
 
 func TestDecodable_UnmarshalJSON_ComplexStructure(t *testing.T) {
@@ -385,8 +386,8 @@ func TestDecodable_UnmarshalJSON_EmptyJSON(t *testing.T) {
 	var decodable ijson.RDecodable[UnmarshalTestInterface, UnmarshalDiscriminator]
 	err := decodable.UnmarshalJSON([]byte("{}"))
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no registry for I type")
+	require.Error(t, err)
+	assert.Equal(t, "no factory found in registry[I: ijson_test.UnmarshalTestInterface, X: ijson_test.UnmarshalDiscriminator] and X value {}", err.Error())
 }
 
 func TestDecodable_UnmarshalJSON_WithXDecodable(t *testing.T) {
@@ -448,7 +449,8 @@ func TestDecodable_UnmarshalMsgpack_InvalidData(t *testing.T) {
 	invalidMsgpack := []byte{0xff, 0xff, 0xff}
 
 	err := decodable.UnmarshalMsgpack(invalidMsgpack)
-	assert.Error(t, err)
+	require.Error(t, err)
+	assert.Equal(t, "msgpack: unexpected code=ff decoding map length", err.Error())
 }
 
 func TestDecodable_UnmarshalMsgpack_NoRegisteredType(t *testing.T) {
@@ -460,8 +462,8 @@ func TestDecodable_UnmarshalMsgpack_NoRegisteredType(t *testing.T) {
 
 	var decodable ijson.RDecodable[UnmarshalTestInterface, UnmarshalDiscriminator]
 	err = decodable.UnmarshalMsgpack(msgpackData)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no registry for I type")
+	require.Error(t, err)
+	assert.Equal(t, "no factory found in registry[I: ijson_test.UnmarshalTestInterface, X: ijson_test.UnmarshalDiscriminator] and X value {unknown}", err.Error())
 }
 
 func TestDecodable_UnmarshalMsgpack_ComplexStructure(t *testing.T) {
@@ -514,7 +516,8 @@ func TestDecodable_UnmarshalMsgpack_EmptyData(t *testing.T) {
 
 	var decodable ijson.RDecodable[UnmarshalTestInterface, UnmarshalDiscriminator]
 	err := decodable.UnmarshalMsgpack(nilMsgpack)
-	assert.Error(t, err)
+	require.Error(t, err)
+	assert.Equal(t, "no factory found in registry[I: ijson_test.UnmarshalTestInterface, X: ijson_test.UnmarshalDiscriminator] and X value {}", err.Error())
 }
 
 func TestDecodable_UnmarshalMsgpack_LargeData(t *testing.T) {
@@ -560,15 +563,15 @@ func TestDecodable_Unmarshal_DeciderError(t *testing.T) {
 	jsonData := `{"should_error": true}`
 	var jsonDecodable ijson.XDecodable[UnmarshalTestInterface, ErrorDeciderStruct]
 	err := jsonDecodable.UnmarshalJSON([]byte(jsonData))
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "intentional decider error")
+	require.Error(t, err)
+	assert.Equal(t, "intentional decider error", err.Error())
 
 	msgpackData, err := msgpack.Marshal(ErrorDeciderStruct{ShouldError: true})
 	assert.NoError(t, err)
 	var msgpackDecodable ijson.XDecodable[UnmarshalTestInterface, ErrorDeciderStruct]
 	err = msgpackDecodable.UnmarshalMsgpack(msgpackData)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "intentional decider error")
+	require.Error(t, err)
+	assert.Equal(t, "intentional decider error", err.Error())
 }
 
 func TestDecodable_Unmarshal_SecondUnmarshalFails(t *testing.T) {
@@ -581,5 +584,6 @@ func TestDecodable_Unmarshal_SecondUnmarshalFails(t *testing.T) {
 
 	var decodable ijson.RDecodable[UnmarshalTestInterface, UnmarshalDiscriminator]
 	err = decodable.UnmarshalJSON([]byte(invalidStructureJSON))
-	assert.Error(t, err)
+	require.Error(t, err)
+	assert.Equal(t, "json: cannot unmarshal object into Go struct field InconsistentStruct.data of type string", err.Error())
 }

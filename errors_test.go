@@ -6,6 +6,7 @@ import (
 
 	"github.com/Nikkolix/ijson"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type TestInterface interface {
@@ -36,7 +37,7 @@ func TestRegisterT_PointerTypeError(t *testing.T) {
 
 	err := ijson.RegisterT[*ValidTestStruct, TestInterface, TestDiscriminator](TestTypeA)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, fmt.Sprintf("factory type %T must not be a pointer", &ValidTestStruct{}), err.Error())
 }
 
@@ -45,8 +46,8 @@ func TestRegisterT_InterfaceNotImplementedError(t *testing.T) {
 
 	err := ijson.RegisterT[InvalidTestStruct, TestInterface, TestDiscriminator](TestTypeA)
 
-	assert.Error(t, err)
-	assert.Equal(t, fmt.Sprintf("factory type %T does not implement I type <nil>", InvalidTestStruct{}), err.Error())
+	require.Error(t, err)
+	assert.Equal(t, "factory type ijson_test.InvalidTestStruct does not implement I type ijson_test.TestInterface", err.Error())
 }
 
 func TestRegisterT_SuccessfulRegistration(t *testing.T) {
@@ -63,7 +64,7 @@ func TestRegister_FactoryError_NonPointer(t *testing.T) {
 		return 42
 	})
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "factory must return a pointer type, got int", err.Error())
 }
 
@@ -79,8 +80,8 @@ func TestRegister_DuplicateRegistrationError(t *testing.T) {
 		return &ValidTestStruct{Value: "test2"}
 	})
 
-	assert.Error(t, err)
-	assert.Equal(t, "type typeA already registered", err.Error())
+	require.Error(t, err)
+	assert.Equal(t, "value typeA already registered for registry[I: ijson_test.TestInterface, X: ijson_test.TestDiscriminator]", err.Error())
 }
 
 func TestRegister_SuccessfulRegistration(t *testing.T) {
@@ -98,8 +99,8 @@ func TestRegistryDecider_NoRegistryError(t *testing.T) {
 	var decider ijson.RegistryDecider[TestInterface, TestDiscriminator]
 	_, err := decider.Decide(TestTypeA)
 
-	assert.Error(t, err)
-	assert.Equal(t, fmt.Sprintf("no registry for I type <nil> and X type %T", TestDiscriminator("")), err.Error())
+	require.Error(t, err)
+	assert.Equal(t, "no factory found in registry[I: ijson_test.TestInterface, X: ijson_test.TestDiscriminator] and X value typeA", err.Error())
 }
 
 func TestRegistryDecider_TypeNotRegisteredError(t *testing.T) {
@@ -111,8 +112,8 @@ func TestRegistryDecider_TypeNotRegisteredError(t *testing.T) {
 	var decider ijson.RegistryDecider[TestInterface, TestDiscriminator]
 	_, err = decider.Decide(TestTypeB)
 
-	assert.Error(t, err)
-	assert.Equal(t, "no factory for X type typeB", err.Error())
+	require.Error(t, err)
+	assert.Equal(t, "no factory found in registry[I: ijson_test.TestInterface, X: ijson_test.TestDiscriminator] and X value typeB", err.Error())
 }
 
 func TestRegistryDecider_SuccessfulDecision(t *testing.T) {
@@ -125,7 +126,7 @@ func TestRegistryDecider_SuccessfulDecision(t *testing.T) {
 	result, err := decider.Decide(TestTypeA)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, result)
+	require.NotNil(t, result)
 	assert.IsType(t, &ValidTestStruct{}, result)
 
 	testStruct := result.(*ValidTestStruct)
@@ -143,8 +144,8 @@ func TestMultipleRegistrations(t *testing.T) {
 	}
 
 	err = ijson.RegisterT[AnotherTestStruct, TestInterface, TestDiscriminator](TestTypeB)
-	assert.Error(t, err)
-	assert.Equal(t, fmt.Sprintf("factory type %T does not implement I type <nil>", AnotherTestStruct{}), err.Error())
+	require.Error(t, err)
+	assert.Equal(t, fmt.Sprintf("factory type %T does not implement I type ijson_test.TestInterface", AnotherTestStruct{}), err.Error())
 }
 
 func TestErrorMessageFormats(t *testing.T) {
@@ -167,7 +168,7 @@ func TestErrorMessageFormats(t *testing.T) {
 			setupFunc: func() error {
 				return ijson.RegisterT[InvalidTestStruct, TestInterface, TestDiscriminator](TestTypeA)
 			},
-			expectedError: fmt.Sprintf("factory type %T does not implement I type <nil>", InvalidTestStruct{}),
+			expectedError: fmt.Sprintf("factory type %T does not implement I type ijson_test.TestInterface", InvalidTestStruct{}),
 		},
 		{
 			name: "factory non-pointer error",
@@ -184,7 +185,7 @@ func TestErrorMessageFormats(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ijson.ResetRegistries()
 			err := tt.setupFunc()
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Equal(t, tt.expectedError, err.Error())
 		})
 	}
@@ -194,20 +195,20 @@ func TestCompleteErrorFlow(t *testing.T) {
 	ijson.ResetRegistries()
 
 	err := ijson.RegisterT[InvalidTestStruct, TestInterface, TestDiscriminator](TestTypeA)
-	assert.Error(t, err)
-	assert.Equal(t, fmt.Sprintf("factory type %T does not implement I type <nil>", InvalidTestStruct{}), err.Error())
+	require.Error(t, err)
+	assert.Equal(t, fmt.Sprintf("factory type %T does not implement I type ijson_test.TestInterface", InvalidTestStruct{}), err.Error())
 
 	err = ijson.RegisterT[ValidTestStruct, TestInterface, TestDiscriminator](TestTypeA)
 	assert.NoError(t, err)
 
 	err = ijson.RegisterT[ValidTestStruct, TestInterface, TestDiscriminator](TestTypeA)
-	assert.Error(t, err)
-	assert.Equal(t, "type typeA already registered", err.Error())
+	require.Error(t, err)
+	assert.Equal(t, "value typeA already registered for registry[I: ijson_test.TestInterface, X: ijson_test.TestDiscriminator]", err.Error())
 
 	var decider ijson.RegistryDecider[TestInterface, TestDiscriminator]
 	_, err = decider.Decide(TestTypeB)
-	assert.Error(t, err)
-	assert.Equal(t, "no factory for X type typeB", err.Error())
+	require.Error(t, err)
+	assert.Equal(t, "no factory found in registry[I: ijson_test.TestInterface, X: ijson_test.TestDiscriminator] and X value typeB", err.Error())
 
 	result, err := decider.Decide(TestTypeA)
 	assert.NoError(t, err)
@@ -226,6 +227,6 @@ func TestErrorsWithDifferentTypes(t *testing.T) {
 	var decider ijson.RegistryDecider[AnotherInterface, IntDiscriminator]
 	_, err := decider.Decide(IntDiscriminator(1))
 
-	assert.Error(t, err)
-	assert.Equal(t, fmt.Sprintf("no registry for I type <nil> and X type %T", IntDiscriminator(0)), err.Error())
+	require.Error(t, err)
+	assert.Equal(t, "no factory found in registry[I: ijson_test.AnotherInterface, X: ijson_test.IntDiscriminator] and X value 1", err.Error())
 }

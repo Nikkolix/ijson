@@ -1,12 +1,12 @@
 package ijson
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// TestInterface und ValidTestStruct werden für die Tests benötigt
-// ...existing code...
 type TestInterface interface {
 	DoSomething() string
 }
@@ -25,29 +25,15 @@ const (
 	TestTypeA TestDiscriminator = "typeA"
 )
 
-func TestRegister_RegistryWrongTypeError(t *testing.T) {
-	ResetRegistries()
-
-	key := typeKeyFor[TestInterface, TestDiscriminator]()
-	registries[key] = "invalid_registry_type"
-
-	err := Register[TestInterface, TestDiscriminator](TestTypeA, func() TestInterface {
-		return &ValidTestStruct{Value: "test"}
-	})
-
-	assert.Error(t, err)
-	assert.Equal(t, "registry for type typeA has wrong type", err.Error())
-}
-
 func TestRegistryDecider_RegistryWrongTypeError(t *testing.T) {
 	ResetRegistries()
 
-	key := typeKeyFor[TestInterface, TestDiscriminator]()
+	key := typeKey[TestInterface, TestDiscriminator]{x: TestTypeA}
 	registries[key] = "invalid_registry_type"
 
 	var decider RegistryDecider[TestInterface, TestDiscriminator]
 	_, err := decider.Decide(TestTypeA)
 
-	assert.Error(t, err)
-	assert.Equal(t, "registry for type typeA has wrong X type", err.Error())
+	require.Error(t, err)
+	assert.Equal(t, "registry[I: ijson.TestInterface, X: ijson.TestDiscriminator] entry should be func() I but is: string for X value typeA", err.Error())
 }
