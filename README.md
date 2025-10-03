@@ -1,4 +1,5 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/Nikkolix/ijson.svg)](https://pkg.go.dev/github.com/Nikkolix/ijson)
+![Coverage](https://img.shields.io/badge/Coverage-100.0%25-brightgreen)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Nikkolix/ijson)](https://goreportcard.com/report/github.com/Nikkolix/ijson)
 [![Build](https://github.com/Nikkolix/ijson/actions/workflows/go.yml/badge.svg)](https://github.com/Nikkolix/ijson/actions)
 # ijson
