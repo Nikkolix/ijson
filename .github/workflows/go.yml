@@ -1,8 +1,13 @@
 name: Build
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: ["**"]   # run on all branches
+    paths-ignore:
+      - 'README.md'   # skip if only README.md changes
   pull_request:
 
 jobs:
