@@ -60,7 +60,7 @@ jobs:
           fi
 
       - name: Commit changes
-        if: steps.verify-changed-files.outputs.files_changed == 'true' || steps.changelog.outputs.changelog_generated == 'true'
+        if: steps.verify-changed-files.outputs.files_changed == 'true' || steps.generate-changelog.outputs.changelog_generated == 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
@@ -69,7 +69,7 @@ jobs:
           git commit -m "chore: Updated coverage badge."
 
       - name: Push changes
-        if: steps.verify-changed-files.outputs.files_changed == 'true' || steps.changelog.outputs.changelog_generated == 'true'
+        if: steps.verify-changed-files.outputs.files_changed == 'true' || steps.generate-changelog.outputs.changelog_generated == 'true'
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ github.token }}
