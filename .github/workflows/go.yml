@@ -59,17 +59,22 @@ jobs:
             git-chglog --next-tag v0.1.0 -o CHANGELOG.md
           fi
 
-      - name: Commit changes
-        if: steps.verify-changed-files.outputs.files_changed == 'true' || steps.generate-changelog.outputs.files_changed == 'true'
+      - name: Commit coverage badge changes
+        if: steps.verify-changed-files.outputs.files_changed == 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add README.md
-          git add CHANGELOG.md
           git commit -m "chore: Updated coverage badge."
 
+      - name: Commit changelog
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add CHANGELOG.md
+          git commit -m "chore: Updated changelog."
+
       - name: Push changes
-        if: steps.verify-changed-files.outputs.files_changed == 'true' || steps.generate-changelog.outputs.files_changed == 'true'
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ github.token }}
