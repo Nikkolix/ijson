@@ -76,6 +76,14 @@ jobs:
           branch: ${{ github.head_ref }}
 
       - name: Semantic Release
-        run: semantic-release github
+        run: |
+          semantic-release github
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 65 ]; then
+            echo "No release needed, ignoring exit code 65"
+            exit 0
+          else
+            exit $EXIT_CODE
+          fi
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
